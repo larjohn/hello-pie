@@ -7,7 +7,7 @@ class DataAcquisitionPCF8591:
     address = 0x48
     handle = None
 
-    def ___init___(self, pi):
+    def __init__(self, pi):
         self.pi = pi
         self.handle = pi.i2c_open(1, self.address, 0)
 
