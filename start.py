@@ -1,24 +1,27 @@
+import socket
 import time
 import pigpio as pigpio
 import paho.mqtt.client as mqtt
 import json
+
+from devices.IRProximitySensorFC51 import IRProximitySensorFC51
 from devices.LED import LED
 from devices.MotorDriverTB6612FNG import MotorDriverTB6612FNG, MotorSelection, FNGMotor
-from devices.PortExpanderMCP23017 import PortExpanderMCP23017
+from devices.PortExpanderMCP23017 import PortExpanderMCP23017, MCPBank
+from devices.StepperDriverULN2003 import StepperDriverULN2003
 from devices.TemperatureSensorDS18B20 import TemperatureSensorDS18B20
 from devices.TiltSwitch import TiltSwitch
 
 
-RASPBERRY_PI_ADDRESS = "192.168.0.151"
+RASPBERRY_PI_ADDRESS = "raspberrypi.local"
+addr = socket.gethostbyname(RASPBERRY_PI_ADDRESS)
 
-pi = pigpio.pi(RASPBERRY_PI_ADDRESS)       # pi1 accesses the local Pi's GPIO
+pi = pigpio.pi(addr)       # pi1 accesses the local Pi's GPIO
 
-temp_sensor = TemperatureSensorDS18B20(pi)
-
-expander = PortExpanderMCP23017(pi)
-expander.pin_all_off()
-
-expander.pin_all_on()
+#expander = PortExpanderMCP23017(pi)
+#stepper = StepperDriverULN2003(pi, expander.get_gpio(MCPBank.A, 1), expander.get_gpio(MCPBank.A, 2),
+#                               expander.get_gpio(MCPBank.A, 3), expander.get_gpio(MCPBank.A, 4))
+#stepper.forward(0.000, 1000)
 
 
 sensors = {}
@@ -26,11 +29,12 @@ actuators = {}
 
 mqttc: mqtt.Client = mqtt.Client(transport='websockets')
 
+
 def on_message(client, userdata, message):
-    #print("message received ", str(message.payload.decode("utf-8")))
-    #print("message topic=", message.topic)
-    #print("message qos=", message.qos)
-    #print("message retain flag=", message.retain)
+    # print("message received ", str(message.payload.decode("utf-8")))
+    # print("message topic=", message.topic)
+    # print("message qos=", message.qos)
+    # print("message retain flag=", message.retain)
 
     msg = json.loads(str(message.payload.decode("utf-8")))
 
@@ -48,6 +52,16 @@ def on_message(client, userdata, message):
             motor.forward(power)
         else:
             motor.reverse(abs(power))
+    elif msg["command"] == "MOTOR.BRAKE":
+        name = msg["args"]["MOTOR_NAME"]
+        motor: FNGMotor = actuators[name]
+
+        motor.brake()
+    elif msg["command"] == "MOTOR.UNBRAKE":
+        name = msg["args"]["MOTOR_NAME"]
+        motor: FNGMotor = actuators[name]
+
+        motor.unbrake()
 
     elif msg["command"] == "INIT":
         pinPWMA = int(msg["args"]["PWMA"])
@@ -74,11 +88,13 @@ def on_message(client, userdata, message):
         device = msg["args"]["DEVICE"]
         if device == "TILT_SWITCH":
             sensors[msg["args"]["ALIAS"]] = TiltSwitch(pi, mqttc, int(msg["args"]["PIN"]))
+        elif device == "IR_PROXIMITY":
+            sensors[msg["args"]["ALIAS"]] = IRProximitySensorFC51(pi, mqttc, int(msg["args"]["PIN"]))
 
 
 mqttc.on_message = on_message
 # Uncomment to enable debug messages
-mqttc.connect(RASPBERRY_PI_ADDRESS, 9001, 60)
+mqttc.connect(addr, 9001, 60)
 mqttc.subscribe("rpi/devices/actuators/#", 1)
 mqttc.subscribe("rpi/subscription", 1)
 mqttc.subscribe("rpi/initialization", 1)

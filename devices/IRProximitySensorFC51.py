@@ -4,17 +4,17 @@ import paho.mqtt.client as mqtt
 from devices.Device import Device
 
 
-class TiltSwitch(Device):
+class IRProximitySensorFC51(Device):
 
     mqttc: mqtt.Client = None
     gpio: int = None
 
     def on_tilt(self, gpio,  edge, tick):
 
-        if edge == 1:
-            self.mqttc.publish("rpi/devices/sensors/tilt/" + str(gpio), "true")
+        if edge == 0:
+            self.mqttc.publish("rpi/devices/sensors/proximity/" + str(gpio), "true")
         else:
-            self.mqttc.publish("rpi/devices/sensors/tilt/" + str(gpio), "false")
+            self.mqttc.publish("rpi/devices/sensors/proximity/" + str(gpio), "false")
 
     def __init__(self, pi: pigpio.pi, mqttc: mqtt.Client, gpio):
         self.mqttc = mqttc

@@ -90,7 +90,7 @@ class MotorDriverTB6612FNG:
         self.pi.write(self.pinSTBY, 0)
 
     def release(self):
-        self.pi.write(self.pinSTBY, 0)
+        self.pi.write(self.pinSTBY, 1)
 
     def on(self, pin):
         self.pi.write(pin, 1)
@@ -119,3 +119,9 @@ class FNGMotor:
 
     def reverse(self, speed):
         self.driver.move(self.motor_selection, MotorDirection.Reverse, speed)
+
+    def unbrake(self):
+        self.driver.release()
+
+    def brake(self):
+        self.driver.brake()
