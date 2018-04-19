@@ -8,6 +8,7 @@ from devices.IRProximitySensorFC51 import IRProximitySensorFC51
 from devices.LED import LED
 from devices.MotorDriverTB6612FNG import MotorDriverTB6612FNG, MotorSelection, FNGMotor
 from devices.PortExpanderMCP23017 import PortExpanderMCP23017, MCPBank
+from devices.RaspberryPi import RaspberryPi
 from devices.StepperDriverULN2003 import StepperDriverULN2003
 from devices.TemperatureSensorDS18B20 import TemperatureSensorDS18B20
 from devices.TiltSwitch import TiltSwitch
@@ -17,7 +18,7 @@ RASPBERRY_PI_ADDRESS = "raspberrypi.local"
 addr = socket.gethostbyname(RASPBERRY_PI_ADDRESS)
 
 pi = pigpio.pi(addr)       # pi1 accesses the local Pi's GPIO
-
+rpi = RaspberryPi(pi)
 #expander = PortExpanderMCP23017(pi)
 #stepper = StepperDriverULN2003(pi, expander.get_gpio(MCPBank.A, 1), expander.get_gpio(MCPBank.A, 2),
 #                               expander.get_gpio(MCPBank.A, 3), expander.get_gpio(MCPBank.A, 4))
@@ -63,6 +64,8 @@ def on_message(client, userdata, message):
 
         motor.unbrake()
 
+
+
     elif msg["command"] == "INIT":
         pinPWMA = int(msg["args"]["PWMA"])
         pinPWMB = int(msg["args"]["PWMB"])
@@ -83,6 +86,33 @@ def on_message(client, userdata, message):
         driver = MotorDriverTB6612FNG(pi, pin_map)
         actuators[msg["args"]["MOTORA_NAME"]] = driver.get_motor(MotorSelection.MotorA)
         actuators[msg["args"]["MOTORB_NAME"]] = driver.get_motor(MotorSelection.MotorB)
+    elif msg["command"] == "INIT_STEPPER":
+
+        pinIN1 = int(msg["args"]["IN1"])
+        pinIN2 = int(msg["args"]["IN2"])
+        pinIN3 = int(msg["args"]["IN3"])
+        pinIN4 = int(msg["args"]["IN4"])
+
+        pin_map = {
+            'pinIN1': pinIN1,
+            'pinIN2': pinIN2,
+            'pinIN3': pinIN3,
+            'pinIN4': pinIN4
+
+        }
+        driver = StepperDriverULN2003(pi, rpi.get_gpio(pinIN1), rpi.get_gpio(pinIN2), rpi.get_gpio(pinIN3), rpi.get_gpio(pinIN4))
+        actuators[msg["args"]["STEPPERA_NAME"]] = driver
+
+    elif msg["command"] == "STEPPER":
+            name = msg["args"]["STEPPER_NAME"]
+            steps = int(msg["args"]["STEPS"])
+            delay = int(msg["args"]["DELAY"])
+            stepper: StepperDriverULN2003 = actuators[name]
+
+            if steps > 0:
+                stepper.forward(delay, abs(steps))
+            else:
+                stepper.backwards(delay, abs(steps))
 
     elif msg["command"] == "SUBSCRIBE":
         device = msg["args"]["DEVICE"]
