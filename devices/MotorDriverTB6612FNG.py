@@ -40,12 +40,14 @@ class MotorDriverTB6612FNG:
     def __init__(self, pi, pin_map):
         self.pinMap = pin_map
         self.pi = pi
-        self.pinPWMA = pin_map["PWMA"]
-        self.pinPWMB = pin_map["PWMB"]
-        self.pinAIN1 = pin_map["AIN1"]
-        self.pinAIN2 = pin_map["AIN2"]
-        self.pinBIN1 = pin_map["BIN1"]
-        self.pinBIN2 = pin_map["BIN2"]
+        if pin_map["PWMA"] is not None and pin_map["AIN1"] is not None and pin_map["AIN2"]:
+            self.pinPWMA = pin_map["PWMA"]
+            self.pinAIN1 = pin_map["AIN1"]
+            self.pinAIN2 = pin_map["AIN2"]
+        if pin_map["PWMB"] is not None and pin_map["BIN1"] is not None and pin_map["BIN2"]:
+            self.pinPWMB = pin_map["PWMB"]
+            self.pinBIN1 = pin_map["BIN1"]
+            self.pinBIN2 = pin_map["BIN2"]
         self.pinSTBY = pin_map["STBY"]
 
     def move(self, motor_selection: MotorSelection, direction: MotorDirection, speed: float):

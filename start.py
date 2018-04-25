@@ -86,27 +86,52 @@ def on_message(client, userdata, message):
         driver = MotorDriverTB6612FNG(pi, pin_map)
         actuators[msg["args"]["MOTORA_NAME"]] = driver.get_motor(MotorSelection.MotorA)
         actuators[msg["args"]["MOTORB_NAME"]] = driver.get_motor(MotorSelection.MotorB)
-    elif msg["command"] == "INIT_STEPPER":
 
+    elif msg["command"] == "INIT_SINGLE":
+        if msg["args"]["MOTORSLOT"] == "A":
+            pinPWMA = int(msg["args"]["PWM"])
+            pinPWMB = None
+            pinAIN1 = int(msg["args"]["IN1"])
+            pinAIN2 = int(msg["args"]["IN2"])
+            pinBIN1 = None
+            pinBIN2 = None
+        else:
+            pinPWMA = None
+            pinPWMB = int(msg["args"]["PWM"])
+            pinAIN1 = None
+            pinAIN2 = None
+            pinBIN1 = int(msg["args"]["IN1"])
+            pinBIN2 = int(msg["args"]["IN2"])
+
+        pinSTBY = int(msg["args"]["STBY"])
+        pin_map = {
+            'PWMA': pinPWMA,
+            'PWMB': pinPWMB,
+            'AIN1': pinAIN1,
+            'AIN2': pinAIN2,
+            'BIN1': pinBIN1,
+            'BIN2': pinBIN2,
+            'STBY': pinSTBY,
+        }
+        driver = MotorDriverTB6612FNG(pi, pin_map)
+        if msg["args"]["MOTORSLOT"] == "A":
+            actuators[msg["args"]["MOTOR_NAME"]] = driver.get_motor(MotorSelection.MotorA)
+        else:
+            actuators[msg["args"]["MOTOR_NAME"]] = driver.get_motor(MotorSelection.MotorB)
+
+    elif msg["command"] == "INIT_STEPPER":
         pinIN1 = int(msg["args"]["IN1"])
         pinIN2 = int(msg["args"]["IN2"])
         pinIN3 = int(msg["args"]["IN3"])
         pinIN4 = int(msg["args"]["IN4"])
 
-        pin_map = {
-            'pinIN1': pinIN1,
-            'pinIN2': pinIN2,
-            'pinIN3': pinIN3,
-            'pinIN4': pinIN4
-
-        }
         driver = StepperDriverULN2003(pi, rpi.get_gpio(pinIN1), rpi.get_gpio(pinIN2), rpi.get_gpio(pinIN3), rpi.get_gpio(pinIN4))
         actuators[msg["args"]["STEPPERA_NAME"]] = driver
 
     elif msg["command"] == "STEPPER":
             name = msg["args"]["STEPPER_NAME"]
             steps = int(msg["args"]["STEPS"])
-            delay = int(msg["args"]["DELAY"])
+            delay = float(msg["args"]["DELAY"])
             stepper: StepperDriverULN2003 = actuators[name]
 
             if steps > 0:
