@@ -101,7 +101,7 @@ class MotorDriverTB6612FNG:
         self.pi.write(pin, 0)
 
     def pulse(self, pin, level):
-        self.pi.set_PWM_dutycycle(pin, level * 255/100)
+        self.pi.set_PWM_dutycycle(pin, min(255, max(0, level * 255/100)))
 
     def get_motor(self, motor_selection: MotorSelection):
         return FNGMotor(self, motor_selection)
