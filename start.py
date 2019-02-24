@@ -3,6 +3,7 @@ import time
 import pigpio as pigpio
 import paho.mqtt.client as mqtt
 import json
+from devices.DataAcquisitionPCF8591 import DataAcquisitionPCF8591
 
 from devices.IRProximitySensorFC51 import IRProximitySensorFC51
 from devices.LED import LED
@@ -24,7 +25,6 @@ rpi = RaspberryPi(pi)
 #                               expander.get_gpio(MCPBank.A, 3), expander.get_gpio(MCPBank.A, 4))
 #stepper.forward(0.000, 1000)
 
-
 sensors = {}
 actuators = {}
 
@@ -32,10 +32,10 @@ mqttc: mqtt.Client = mqtt.Client(transport='websockets')
 
 
 def on_message(client, userdata, message):
-    # print("message received ", str(message.payload.decode("utf-8")))
-    # print("message topic=", message.topic)
-    # print("message qos=", message.qos)
-    # print("message retain flag=", message.retain)
+    print("message received ", str(message.payload.decode("utf-8")))
+    print("message topic=", message.topic)
+    print("message qos=", message.qos)
+    print("message retain flag=", message.retain)
 
     msg = json.loads(str(message.payload.decode("utf-8")))
 
@@ -145,6 +145,13 @@ def on_message(client, userdata, message):
             sensors[msg["args"]["ALIAS"]] = TiltSwitch(pi, mqttc, int(msg["args"]["PIN"]))
         elif device == "IR_PROXIMITY":
             sensors[msg["args"]["ALIAS"]] = IRProximitySensorFC51(pi, mqttc, int(msg["args"]["PIN"]))
+        elif device == "ANALOG":
+            sensors[msg["args"]["ALIAS"]] = DataAcquisitionPCF8591(pi, int(msg["args"]["ADDR"], 16))
+
+    elif msg["command"] == "ANALOGREAD":
+        dev: DataAcquisitionPCF8591 = sensors[msg["args"]["ALIAS"]]
+        channels = dev.read_all()
+        mqttc.publish("rpi/devices/sensors/analog/" + msg["args"]["ALIAS"], json.dumps(channels))
 
 
 mqttc.on_message = on_message
@@ -153,6 +160,7 @@ mqttc.connect(addr, 9001, 60)
 mqttc.subscribe("rpi/devices/actuators/#", 1)
 mqttc.subscribe("rpi/subscription", 1)
 mqttc.subscribe("rpi/initialization", 1)
+mqttc.subscribe("rpi/data", 1)
 
 mqttc.loop_forever()
 

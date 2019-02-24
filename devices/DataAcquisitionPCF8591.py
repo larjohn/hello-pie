@@ -1,15 +1,24 @@
 import pigpio as pigpio
+from devices.Device import Device
+from helpers.I2CSniffer import I2CSniffer
 
 
-class DataAcquisitionPCF8591:
-
+class DataAcquisitionPCF8591(Device):
     pi: pigpio.pi = None
     address = 0x48
     handle = None
+    sniffer = None
 
-    def __init__(self, pi):
+    def __init__(self, pi: pigpio.pi, address=0x48):
+        self.address = address
         self.pi = pi
         self.handle = pi.i2c_open(1, self.address, 0)
+
+    def read_all(self):
+        channels = [0, 0, 0, 0]
+        for cn in range(0, 4):
+            channels[cn] = self.read(cn)
+        return channels
 
     def read(self, chn):  # channel
         try:
@@ -29,8 +38,8 @@ class DataAcquisitionPCF8591:
 
     def write(self, val):
         try:
-            temp = val # move string value to temp
-            temp = int(temp) # change string to integer
+            temp = val  # move string value to temp
+            temp = int(temp)  # change string to integer
             # print temp to see on terminal else comment out
             self.pi.i2c_write_byte(self.handle, temp)
         except Exception as e:

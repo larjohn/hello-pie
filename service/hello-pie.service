@@ -1,0 +1,17 @@
+[Install]
+WantedBy=multi-user.target
+
+[Unit]
+Description = Listen for Scratch 3.0 commands
+After = mosquitto.service
+
+[Service]
+ExecStart = /usr/local/bin/python3.6 /home/pi/hello-pie/start.py
+Restart = always
+StandardOutput = syslog
+StandardError = syslog
+SyslogIdentifier = IMS
+User = pi
+
+
+
