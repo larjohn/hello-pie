@@ -1,10 +1,11 @@
 import socket
+import threading
 import time
 import pigpio as pigpio
 import paho.mqtt.client as mqtt
 import json
 from devices.DataAcquisitionPCF8591 import DataAcquisitionPCF8591
-
+from devices.RealTimeTrackingSensorRadinoL4 import RealTimeTrackingSensorRadinoL4
 from devices.IRProximitySensorFC51 import IRProximitySensorFC51
 from devices.LED import LED
 from devices.MotorDriverTB6612FNG import MotorDriverTB6612FNG, MotorSelection, FNGMotor
@@ -13,7 +14,7 @@ from devices.RaspberryPi import RaspberryPi
 from devices.StepperDriverULN2003 import StepperDriverULN2003
 from devices.TemperatureSensorDS18B20 import TemperatureSensorDS18B20
 from devices.TiltSwitch import TiltSwitch
-
+import struct
 
 RASPBERRY_PI_ADDRESS = "raspberrypi.local"
 addr = socket.gethostbyname(RASPBERRY_PI_ADDRESS)
@@ -24,6 +25,16 @@ rpi = RaspberryPi(pi)
 #stepper = StepperDriverULN2003(pi, expander.get_gpio(MCPBank.A, 1), expander.get_gpio(MCPBank.A, 2),
 #                               expander.get_gpio(MCPBank.A, 3), expander.get_gpio(MCPBank.A, 4))
 #stepper.forward(0.000, 1000)
+
+rtsm = RealTimeTrackingSensorRadinoL4(pi)
+
+
+def printit():
+    threading.Timer(1, printit).start()
+    print(rtsm.readInteger())
+
+
+printit()
 
 sensors = {}
 actuators = {}
