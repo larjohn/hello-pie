@@ -1,3 +1,14 @@
+● hello-pie.service - Listen for Scratch 3.0 commands
+   Loaded: loaded (/etc/systemd/system/hello-pie.service; enabled; vendor preset: enabled)
+   Active: active (running) since Thu 2019-03-28 00:40:38 -02; 7s ago
+ Main PID: 880 (python3.6)
+   CGroup: /system.slice/hello-pie.service
+           └─880 /usr/local/bin/python3.6 /home/pi/hello-pie/start.py
+
+
+
+
+
 [Install]
 WantedBy=multi-user.target
 

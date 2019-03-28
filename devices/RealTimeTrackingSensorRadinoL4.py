@@ -24,12 +24,7 @@ class RealTimeTrackingSensorRadinoL4(Device):
 
         return self.pi.i2c_read_device(self.handle, 2)
 
-    def readfloat(self):
-        block = self.pi.i2c_read_block_data(self.handle, 0)  # second arg is 'cmd'. It is andatory but not used in this case. It may be used by the higher level protocol
-        # block is a list of 32 elements (int)
-        # return block
-        n = struct.unpack('<l', ''.join([chr(i) for i in block[:4]]))[0]
-        return n
+
 
     def readInteger(self):
         # block = self.pi.i2c_read_block_data(self.handle, 0)  # second arg is 'cmd'. It is andatory but not used in this case. It may be used by the higher level protocol

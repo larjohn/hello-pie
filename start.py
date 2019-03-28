@@ -14,9 +14,10 @@ from devices.RaspberryPi import RaspberryPi
 from devices.StepperDriverULN2003 import StepperDriverULN2003
 from devices.TemperatureSensorDS18B20 import TemperatureSensorDS18B20
 from devices.TiltSwitch import TiltSwitch
+from devices.GenericSwitch import GenericSwitch
 import struct
 
-RASPBERRY_PI_ADDRESS = "raspberrypi.local"
+RASPBERRY_PI_ADDRESS = "zero1"
 addr = socket.gethostbyname(RASPBERRY_PI_ADDRESS)
 
 pi = pigpio.pi(addr)       # pi1 accesses the local Pi's GPIO
@@ -29,12 +30,12 @@ rpi = RaspberryPi(pi)
 rtsm = RealTimeTrackingSensorRadinoL4(pi)
 
 
-def printit():
-    threading.Timer(1, printit).start()
-    print(rtsm.readInteger())
+#def printit():
+#    threading.Timer(.2, printit).start()
+#    print(rtsm.readInteger())
 
 
-printit()
+#printit()
 
 sensors = {}
 actuators = {}
@@ -154,6 +155,8 @@ def on_message(client, userdata, message):
         device = msg["args"]["DEVICE"]
         if device == "TILT_SWITCH":
             sensors[msg["args"]["ALIAS"]] = TiltSwitch(pi, mqttc, int(msg["args"]["PIN"]))
+        elif device == "SWITCH":
+            sensors[msg["args"]["ALIAS"]] = GenericSwitch(pi, mqttc, int(msg["args"]["PIN"]))
         elif device == "IR_PROXIMITY":
             sensors[msg["args"]["ALIAS"]] = IRProximitySensorFC51(pi, mqttc, int(msg["args"]["PIN"]))
         elif device == "ANALOG":
