@@ -1,6 +1,7 @@
 import pigpio
 
 from devices.AbstractGPIO import AbstractGPIO
+from devices.AbstractGPIOGroup import AbstractGPIOGroup
 from devices.Controller import Controller
 
 from enum import Enum
@@ -41,11 +42,13 @@ class PortExpanderMCP23017(Controller):
 
         bit = pin - 1
         if bank == MCPBank.B:
-            self.valueB = self.valueB | (1 << bit)
-            self.pi.i2c_write_byte_data(self.handle, self.OLATB, self.valueB)
+            if self.valueB != self.valueB | (1 << bit):
+                self.valueB = self.valueB | (1 << bit)
+                self.pi.i2c_write_byte_data(self.handle, self.OLATB, self.valueB)
         else:
-            self.valueA = self.valueA | (1 << bit)
-            self.pi.i2c_write_byte_data(self.handle, self.OLATA, self.valueA)
+            if self.valueA != self.valueA | (1 << bit):
+                self.valueA = self.valueA | (1 << bit)
+                self.pi.i2c_write_byte_data(self.handle, self.OLATA, self.valueA)
 
     def pin_input(self, bank: MCPBank, pin: int):
 
@@ -71,11 +74,13 @@ class PortExpanderMCP23017(Controller):
 
         bit = pin - 1
         if bank == MCPBank.B:
-            self.valueB = self.valueB & (0xff - (1 << bit))
-            self.pi.i2c_write_byte_data(self.handle, self.OLATB, self.valueB)
+            if self.valueB != self.valueB & (0xff - (1 << bit)):
+                self.valueB = self.valueB & (0xff - (1 << bit))
+                self.pi.i2c_write_byte_data(self.handle, self.OLATB, self.valueB)
         else:
-            self.valueA = self.valueA & (0xff - (1 << bit))
-            self.pi.i2c_write_byte_data(self.handle, self.OLATA, self.valueA)
+            if self.valueA != self.valueA & (0xff - (1 << bit)):
+                self.valueA = self.valueA & (0xff - (1 << bit))
+                self.pi.i2c_write_byte_data(self.handle, self.OLATA, self.valueA)
 
     def pin_status(self, bank: MCPBank, pin: int):
 
@@ -136,3 +141,20 @@ class ExpandedGPIO(AbstractGPIO):
         else:
             self.controller.pin_input(self.bank, self.pin)
 
+
+
+class ExpandedGPIOGroup(AbstractGPIOGroup):
+
+    name = None
+    controller: pigpio.pi = None
+    gpios: [AbstractGPIO]
+
+    def __init__(self, controller: pigpio.pi, gpios: [AbstractGPIO]):
+        self.controller = controller
+        self.gpios = gpios
+        for j in range(self.gpios.count):
+            self.gpios[j].set_mode(pigpio.OUTPUT)
+
+    def set_step(self, bits):
+        for j in range(self.gpios.count):
+            self.gpios[j].write(bits[j])

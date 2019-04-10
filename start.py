@@ -5,10 +5,12 @@ import pigpio as pigpio
 import paho.mqtt.client as mqtt
 import json
 from devices.DataAcquisitionPCF8591 import DataAcquisitionPCF8591
+from devices.PigpioStepperMotor import StepperMotor, fullStepSequence
 from devices.RealTimeTrackingSensorRadinoL4 import RealTimeTrackingSensorRadinoL4
 from devices.IRProximitySensorFC51 import IRProximitySensorFC51
 from devices.LED import LED
 from devices.MotorDriverTB6612FNG import MotorDriverTB6612FNG, MotorSelection, FNGMotor
+from devices.MotorDriverDRV8825 import MotorDriverDRV8825, MotorDirection
 from devices.PortExpanderMCP23017 import PortExpanderMCP23017, MCPBank
 from devices.RaspberryPi import RaspberryPi
 from devices.StepperDriverULN2003 import StepperDriverULN2003
@@ -20,22 +22,56 @@ import struct
 RASPBERRY_PI_ADDRESS = "zero1"
 addr = socket.gethostbyname(RASPBERRY_PI_ADDRESS)
 
-pi = pigpio.pi(addr)       # pi1 accesses the local Pi's GPIO
+pi = pigpio.pi(addr)  # pi1 accesses the local Pi's GPIO
 rpi = RaspberryPi(pi)
 #expander = PortExpanderMCP23017(pi)
-#stepper = StepperDriverULN2003(pi, expander.get_gpio(MCPBank.A, 1), expander.get_gpio(MCPBank.A, 2),
-#                               expander.get_gpio(MCPBank.A, 3), expander.get_gpio(MCPBank.A, 4))
-#stepper.forward(0.000, 1000)
+#expander.pin_all_off()
+#stepper = StepperDriverULN2003(pi, expander.get_gpio(MCPBank.A, 5), expander.get_gpio(MCPBank.A, 6),
+#                               expander.get_gpio(MCPBank.A, 7), expander.get_gpio(MCPBank.A, 8))
+# stepper.forward(0.000, 1000)
 
-rtsm = RealTimeTrackingSensorRadinoL4(pi)
+# motor = StepperMotor(pi, 4, 17, 27, 22, sequence = fullStepSequence)
+# for i in range(1024):
+# motor.doClockwiseStep()
 
 
-#def printit():
+# rtsm = RealTimeTrackingSensorRadinoL4(pi)
+def generate_ramp(ramp):
+    """Generate ramp wave forms.
+    ramp:  List of [Frequency, Steps]
+    """
+    pi.wave_clear()     # clear existing waves
+    length = len(ramp)  # number of ramp levels
+    wid = [-1] * length
+
+    # Generate a wave per ramp level
+    for i in range(length):
+        frequency = ramp[i][0]
+        micros = int(500000 / frequency)
+        wf = [pigpio.pulse(1 << 21, 0, micros), pigpio.pulse(0, 1 << 21, micros)]
+        pi.wave_add_generic(wf)
+        wid[i] = pi.wave_create()
+
+    # Generate a chain of waves
+    chain = []
+    for i in range(length):
+        steps = ramp[i][1]
+        x = steps & 255
+        y = steps >> 8
+        chain += [255, 0, wid[i], 255, 1, x, y]
+
+    pi.wave_chain(chain)  # Transmit chain.
+#pi.write(16, 1)
+#pi.write(20, 0)
+#pi.set_mode(21, pigpio.OUTPUT)
+#generate_ramp([[550, 3200]])
+
+# def printit():
 #    threading.Timer(.2, printit).start()
 #    print(rtsm.readInteger())
 
 
-#printit()
+# printit()
 
 sensors = {}
 actuators = {}
@@ -65,6 +101,15 @@ def on_message(client, userdata, message):
             motor.forward(power)
         else:
             motor.reverse(abs(power))
+    if msg["command"] == "BIPOLAR_MOTOR":
+        name = msg["args"]["BIPOLAR_MOTOR_NAME"]
+        steps = int(msg["args"]["STP"])
+        direction = int(msg["args"]["DIR"])
+        motor: MotorDriverDRV8825 = actuators[name]
+
+        if steps > 0:
+            motor.turn(MotorDirection(direction), steps)
+
     elif msg["command"] == "MOTOR.BRAKE":
         name = msg["args"]["MOTOR_NAME"]
         motor: FNGMotor = actuators[name]
@@ -76,9 +121,7 @@ def on_message(client, userdata, message):
 
         motor.unbrake()
 
-
-
-    elif msg["command"] == "INIT":
+    elif msg["command"] == "INIT_TB6612FNG":
         pinPWMA = int(msg["args"]["PWMA"])
         pinPWMB = int(msg["args"]["PWMB"])
         pinAIN1 = int(msg["args"]["AIN1"])
@@ -98,6 +141,13 @@ def on_message(client, userdata, message):
         driver = MotorDriverTB6612FNG(pi, pin_map)
         actuators[msg["args"]["MOTORA_NAME"]] = driver.get_motor(MotorSelection.MotorA)
         actuators[msg["args"]["MOTORB_NAME"]] = driver.get_motor(MotorSelection.MotorB)
+
+    elif msg["command"] == "INIT_DRV8825":
+        pinSTP = int(msg["args"]["STP"])
+        pinSLEEP = int(msg["args"]["SLEEP"])
+        pinDIR = int(msg["args"]["DIR"])
+        driver = MotorDriverDRV8825(pi, pinSTP, pinSLEEP, pinDIR)
+        actuators[msg["args"]["BIPOLAR_MOTOR_NAME"]] = driver
 
     elif msg["command"] == "INIT_SINGLE":
         if msg["args"]["MOTORSLOT"] == "A":
@@ -137,19 +187,20 @@ def on_message(client, userdata, message):
         pinIN3 = int(msg["args"]["IN3"])
         pinIN4 = int(msg["args"]["IN4"])
 
-        driver = StepperDriverULN2003(pi, rpi.get_gpio(pinIN1), rpi.get_gpio(pinIN2), rpi.get_gpio(pinIN3), rpi.get_gpio(pinIN4))
+        driver = StepperDriverULN2003(pi, rpi.get_gpio(pinIN1), rpi.get_gpio(pinIN2), rpi.get_gpio(pinIN3),
+                                      rpi.get_gpio(pinIN4))
         actuators[msg["args"]["STEPPERA_NAME"]] = driver
 
     elif msg["command"] == "STEPPER":
-            name = msg["args"]["STEPPER_NAME"]
-            steps = int(msg["args"]["STEPS"])
-            delay = float(msg["args"]["DELAY"])
-            stepper: StepperDriverULN2003 = actuators[name]
+        name = msg["args"]["STEPPER_NAME"]
+        steps = int(msg["args"]["STEPS"])
+        delay = float(msg["args"]["DELAY"])
+        stepper: StepperDriverULN2003 = actuators[name]
 
-            if steps > 0:
-                stepper.forward(delay, abs(steps))
-            else:
-                stepper.backwards(delay, abs(steps))
+        if steps > 0:
+            stepper.forward(delay, abs(steps))
+        else:
+            stepper.backwards(delay, abs(steps))
 
     elif msg["command"] == "SUBSCRIBE":
         device = msg["args"]["DEVICE"]
@@ -177,7 +228,6 @@ mqttc.subscribe("rpi/initialization", 1)
 mqttc.subscribe("rpi/data", 1)
 
 mqttc.loop_forever()
-
 
 try:
     while True:
@@ -265,4 +315,3 @@ except KeyboardInterrupt:
 #
 # if old_wid is not None:
 #    pi.wave_delete(old_wid)
-

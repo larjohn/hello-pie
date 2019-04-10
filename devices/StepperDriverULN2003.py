@@ -1,61 +1,63 @@
 import time
+from collections import deque
 
 import pigpio
+from time import sleep
 
 from devices.AbstractGPIO import AbstractGPIO
 
 
 class StepperDriverULN2003:
-
     pi: pigpio.pi = None
-    enable_pin = 5
-    coil_A_1_pin = None  # IN2
-    coil_A_2_pin = None  # IN4
-    coil_B_1_pin = None  # IN1
-    coil_B_2_pin = None  # IN3
 
-    step_count = 8
-    seq = [0, 0, 0, 0, 0, 0, 0, 0]
+    fullStepSequence = (
+        (1, 0, 0, 0),
+        (0, 1, 0, 0),
+        (0, 0, 1, 0),
+        (0, 0, 0, 1)
+    )
 
-    def __init__(self, pi: pigpio.pi, in1: AbstractGPIO, in2: AbstractGPIO, in3: AbstractGPIO, in4: AbstractGPIO):
-        self.seq[0] = [0, 1, 0, 0]
-        self.seq[1] = [0, 1, 0, 1]
-        self.seq[2] = [0, 0, 0, 1]
-        self.seq[3] = [1, 0, 0, 1]
-        self.seq[4] = [1, 0, 0, 0]
-        self.seq[5] = [1, 0, 1, 0]
-        self.seq[6] = [0, 0, 1, 0]
-        self.seq[7] = [0, 1, 1, 0]
+    halfStepSequence = (
+        (1, 0, 0, 0),
+        (1, 1, 0, 0),
+        (0, 1, 0, 0),
+        (0, 1, 1, 0),
+        (0, 0, 1, 0),
+        (0, 0, 1, 1),
+        (0, 0, 0, 1),
+        (1, 0, 0, 1)
+    )
+
+    def __init__(self, pi, pin1: AbstractGPIO, pin2: AbstractGPIO, pin3: AbstractGPIO, pin4: AbstractGPIO,  delay_after_step=0.003):
+        if not isinstance(pi, pigpio.pi):
+            raise TypeError("Is not pigpio.pi instance.")
+        pin1.set_mode(pigpio.OUTPUT)
+        pin2.set_mode(pigpio.OUTPUT)
+        pin3.set_mode(pigpio.OUTPUT)
+        pin4.set_mode(pigpio.OUTPUT)
+        self.pin1 = pin1
+        self.pin2 = pin2
+        self.pin3 = pin3
+        self.pin4 = pin4
         self.pi = pi
-        self.coil_B_1_pin = in1
-        self.coil_A_1_pin = in2
-        self.coil_B_2_pin = in3
-        self.coil_A_2_pin = in4
-        self.pi.set_mode(self.enable_pin, pigpio.OUTPUT)
-        self.pi.write(self.enable_pin, 1)
+        self.delayAfterStep = delay_after_step
+        self.deque = deque(self.fullStepSequence)
 
-        self.coil_A_1_pin.set_mode(pigpio.OUTPUT)
-        self.coil_A_2_pin.set_mode(pigpio.OUTPUT)
-        self.coil_B_1_pin.set_mode(pigpio.OUTPUT)
-        self.coil_B_2_pin.set_mode(pigpio.OUTPUT)
+    def do_counter_clockwise_step(self):
+        self.deque.rotate(-1)
+        self.do_step_and_delay(self.deque[0])
 
-    def set_step(self, w1, w2, w3, w4):
-        self.coil_A_1_pin.write(w1)
-        self.coil_A_2_pin.write(w2)
-        self.coil_B_1_pin.write(w3)
-        self.coil_B_2_pin.write(w4)
+    def do_clockwise_step(self):
+        self.deque.rotate(1)
+        self.do_step_and_delay(self.deque[0])
 
-    def forward(self, delay, steps):
-        for _ in range(steps):
-            for j in range(self.step_count):
-                self.set_step(self.seq[j][0], self.seq[j][1], self.seq[j][2], self.seq[j][3])
-                time.sleep(delay)
-        self.set_step(0, 0, 0, 0)
+    def do_step_and_delay(self, step):
+        self.pin1.write(step[0])
+        self.pin2.write(step[1])
+        self.pin3.write(step[2])
+        self.pin4.write(step[3])
+        sleep(self.delayAfterStep)
 
-    def backwards(self, delay, steps):
-        for i in range(steps):
-            for j in reversed(range(self.step_count)):
-                self.set_step(self.seq[j][0], self.seq[j][1], self.seq[j][2], self.seq[j][3])
-                time.sleep(delay)
-        self.set_step(0, 0, 0, 0)
+
+
 
