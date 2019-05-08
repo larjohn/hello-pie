@@ -21,7 +21,7 @@ class GenericSwitch(Device):
         self.gpio = gpio
         pi.set_glitch_filter(gpio, 300000)
 
-        pi.set_pull_up_down(gpio, pigpio.PUD_DOWN)
+        #pi.set_pull_up_down(gpio, pigpio.PUD_DOWN)
 
         pi.set_mode(gpio, pigpio.INPUT)
         pi.callback(gpio, pigpio.EITHER_EDGE, self.on_edge)
