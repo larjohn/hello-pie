@@ -1,6 +1,6 @@
-import pigpio as pigpio
 import paho.mqtt.client as mqtt
-import time
+import pigpio as pigpio
+
 from devices.Device import Device
 
 

@@ -25,6 +25,14 @@ class MotorDriverDRV8825:
         self.pi.set_mode(self.pinSTEP, pigpio.OUTPUT)
         self.pi.set_mode(self.pinSLEEP, pigpio.OUTPUT)
         self.pi.set_mode(self.pinDIR, pigpio.OUTPUT)
+        chain = []
+
+        end_pulse = [pigpio.pulse(0, 1 << self.pinSLEEP, 1000000)]
+        self.pi.wave_add_generic(end_pulse)
+        end_pulse_id = self.pi.wave_create()
+        chain += [end_pulse_id]
+
+        self.pi.wave_chain(chain)  # Transmit chain.
 
     def turn(self, motor_direction: MotorDirection, steps: int):
         if motor_direction == MotorDirection.Forward:
